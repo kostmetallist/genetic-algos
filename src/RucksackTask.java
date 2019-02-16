@@ -54,10 +54,23 @@ class Loadout extends Organism {
         }
     }
 
+    public double getItemsWeight() {
+
+        double itemsWeight = .0;
+        byte[] items = this.getGenome();
+
+        for (int i = 0; i < items.length; i++) {
+            itemsWeight += items[i] * itemPool.get(i).getWeight();
+        }
+
+        return itemsWeight;
+    }
+
     public double getFitnessValue() {
 
         double fitValue = .0;
         byte[] items = this.getGenome();
+
         for (int i = 0; i < items.length; i++) {
             fitValue += items[i] * itemPool.get(i).getPrice();
         }
@@ -65,20 +78,60 @@ class Loadout extends Organism {
         return fitValue;
     }
 
+    public double getFitnessValue(String penaltyType, 
+        double rucksackCapacity) {
+
+        double fitValue = .0;
+        final byte[] items = this.getGenome();
+        final double mult = 0.03;
+
+        for (int i = 0; i < items.length; i++) {
+            fitValue += items[i] * itemPool.get(i).getPrice();
+        }
+
+        switch (penaltyType) {
+
+            case "linear":
+                fitValue -= getLinearPenalty(rucksackCapacity, mult);
+                break;
+
+            case "squared":
+                fitValue -= getSquaredPenalty(rucksackCapacity, mult);
+                break;
+
+            case "log":
+                fitValue -= getLogPenalty(rucksackCapacity, mult);
+                break;
+        }
+
+        System.out.println("FITNESS: " + fitValue);
+        return fitValue;
+    }
+
+    public double getLinearPenalty(
+        double rucksackCapacity,
+        double multiplier) {
+
+        return multiplier * (getItemsWeight() - rucksackCapacity);
+    }
+
+    public double getSquaredPenalty(
+        double rucksackCapacity,
+        double multiplier) {
+
+        double linearPenalty = getLinearPenalty(rucksackCapacity, multiplier);
+        return linearPenalty * linearPenalty;
+    }
+
     public double getLogPenalty(
         double rucksackCapacity,
         double multiplier) {
 
-        double penValue = .0;
-        byte[] items = this.getGenome();
-
-        for (int i = 0; i < itemPool.size(); i++) {
-            penValue += items[i]*itemPool.get(i).getWeight();
-        }
-
-        penValue -= 1 + multiplier*(penValue - rucksackCapacity);
+        double logArgument = 
+            1 + getLinearPenalty(rucksackCapacity, multiplier);
+        System.out.println("la " + logArgument);
         // getting log2
-        return Math.log(penValue) / Math.log(2);
+        return Math.log(logArgument) / Math.log(2);
     }
 
     @Override
@@ -123,23 +176,51 @@ public class RucksackTask {
         return new Loadout(binVector, itemPool);
     }
 
+    public void fillLoadoutsProbabilities(List<Loadout> loadouts, 
+        double rucksackCapacity) {
+
+        // in this method we assume all loadouts have non-negative fit values
+        double sumValue = .0;
+
+        for (Loadout loadout : loadouts) {
+            sumValue += loadout.getFitnessValue("log", rucksackCapacity);
+        }
+
+        for (Loadout loadout : loadouts) {
+            loadout.setReproductionProb(
+                loadout.getFitnessValue("log", rucksackCapacity) / sumValue);
+        }
+    }
+
+    public void showMaxMin(List<Loadout> loadouts) {
+
+        double max = loadouts.get(0).getFitnessValue();
+        double min = loadouts.get(0).getFitnessValue();
+
+        for (Loadout loadout : loadouts) {
+
+            double fitValue = loadout.getFitnessValue();
+
+            if (fitValue > max) {
+                max = fitValue;
+                // System.out.println("max is reassigned to " + max + 
+                //     " with loadout probability " + loadout.get);
+            }
+
+            if (fitValue < min) {
+                min = fitValue;
+            }
+        }
+
+        System.out.println(min + "-" + max);
+    }
+
     public static void main(String[] args) {
 
-        // byte[] genome = new byte[8];
-        // Random rnd = new Random();
-        // rnd.nextBytes(genome);
-
-        // for (int i = 0; i < 8; i++) {
-        //     System.out.print(genome[i]);
-        // }
-        // System.out.println();
-        // System.out.println(genome);
-
-        // Loadout item = new Loadout(genome);
-        // System.out.println(item.getGenome());
-
-        int poolSize = 60;
-        int casesNumber = 10;
+        // that also defines genome's size
+        final int poolSize = 80;
+        final int casesNumber = 30;
+        final double rucksackCapacity = 35;
 
         RucksackTask rt = new RucksackTask();
         List<Item> itemPool = rt.generateItemPool(poolSize);
@@ -149,8 +230,42 @@ public class RucksackTask {
             loadoutList.add(rt.generateRandomLoadout(itemPool));
         }
 
-        for (Loadout loadout : loadoutList) {
-            System.out.println(loadout);
+        // for (Loadout loadout : loadoutList) {
+        //     System.out.println(loadout);
+        // }
+
+        Genetic geneticProcess = new Genetic(poolSize);
+        Genetic.Parameters params = geneticProcess.new Parameters();
+        params.setCrossingoverProb(0.8);
+        params.setMutationProb(0.1);
+        params.setDelta(0.05);
+        params.setPercentage(0.75);
+        geneticProcess.setParameters(params);
+
+        rt.fillLoadoutsProbabilities(loadoutList, rucksackCapacity);
+        List<Organism> organisms = new ArrayList<>(loadoutList);
+        geneticProcess.setCurOrganisms(organisms);
+        rt.showMaxMin(loadoutList);
+
+        for (int i = 0; i < 10; i++) {
+
+            geneticProcess.doGenerationStep();
+            List<Organism> newOrganisms = geneticProcess.getCurOrganisms();
+            List<Loadout> newLoadouts = new ArrayList<>();
+
+            for (Organism org : newOrganisms) {
+                newLoadouts.add(new Loadout(org.getGenome(), itemPool));
+            }
+
+            rt.fillLoadoutsProbabilities(newLoadouts, rucksackCapacity);
+
+            for (int j = 0; j < newOrganisms.size(); j++) {
+                newOrganisms.get(j).setReproductionProb(
+                    newLoadouts.get(j).getReproductionProb());
+            }
+
+            System.out.println("--------------------------------------");
+            rt.showMaxMin(newLoadouts);
         }
     }
 }

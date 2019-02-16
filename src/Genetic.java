@@ -4,7 +4,7 @@ import java.util.*;
 class Organism {
 
     private byte[] genome;
-    private double repoductionProb;
+    private double reproductionProb;
 
     public Organism(byte[] genome) {
         this.genome = genome;
@@ -15,11 +15,11 @@ class Organism {
     }
 
     public double getReproductionProb() {
-        return this.repoductionProb;
+        return this.reproductionProb;
     }
 
     public void setReproductionProb(double prob) {
-        this.repoductionProb = prob;
+        this.reproductionProb = prob;
     }
 }
 
@@ -109,6 +109,10 @@ public class Genetic {
         return this.curOrganisms;
     }
 
+    public void setCurOrganisms(List<Organism> curOrganisms) {
+        this.curOrganisms = curOrganisms;
+    }
+
     public void makeRandomColony(int n) {
 
         Random rand = new Random();
@@ -140,7 +144,7 @@ public class Genetic {
     }
 
     // markup contains values describing division points of segment, 
-    // so we will have (N+1) parts whilst markip.size() == N
+    // so we will have (N+1) parts whilst markup.size() == N
     private int getInterval(double val, List<Double> markup) {
 
         int i = 0;
@@ -175,6 +179,7 @@ public class Genetic {
     }
 
     // careful -- modifies curOrganisms
+    // assure you have assigned probabilities to organisms
     public void doGenerationStep() {
 
         List<Organism> selected = new ArrayList<>();
@@ -186,6 +191,8 @@ public class Genetic {
             accumulator += each.getReproductionProb();
             probNodes.add(accumulator);
         }
+
+        probNodes.remove(probNodes.size()-1);
 
         // reproducing
         Random rand = new Random();
