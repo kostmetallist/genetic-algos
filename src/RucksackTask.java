@@ -39,7 +39,7 @@ class Item {
 
 class Loadout extends Organism {
 
-    List<Item> itemPool;
+    final private List<Item> itemPool;
 
 
     // attention: for simplicity, there is a shallow copying
@@ -83,11 +83,14 @@ class Loadout extends Organism {
 
         double fitValue = .0;
         final byte[] items = this.getGenome();
-        final double mult = 0.03;
+        final double mult = 1.5;
 
         for (int i = 0; i < items.length; i++) {
             fitValue += items[i] * itemPool.get(i).getPrice();
         }
+
+        // System.out.println("FITNESS BEFORE: " + fitValue + "LOADOUT WEIGHT: " + 
+        //     this.getItemsWeight());
 
         switch (penaltyType) {
 
@@ -104,18 +107,18 @@ class Loadout extends Organism {
                 break;
         }
 
-        System.out.println("FITNESS: " + fitValue);
+        // System.out.println("FITNESS AFTER: " + fitValue);
         return fitValue;
     }
 
-    public double getLinearPenalty(
+    private double getLinearPenalty(
         double rucksackCapacity,
         double multiplier) {
 
         return multiplier * (getItemsWeight() - rucksackCapacity);
     }
 
-    public double getSquaredPenalty(
+    private double getSquaredPenalty(
         double rucksackCapacity,
         double multiplier) {
 
@@ -123,16 +126,60 @@ class Loadout extends Organism {
         return linearPenalty * linearPenalty;
     }
 
-    public double getLogPenalty(
+    private double getLogPenalty(
         double rucksackCapacity,
         double multiplier) {
 
         double logArgument = 
             1 + getLinearPenalty(rucksackCapacity, multiplier);
-        System.out.println("la " + logArgument);
+        //System.out.println("la " + logArgument);
         // getting log2
         return Math.log(logArgument) / Math.log(2);
     }
+
+    private List<Integer> getPresentItemsIndices() {
+
+        List<Integer> indices = new ArrayList<>();
+        byte[] genome = this.getGenome();
+
+        for (int i = 0; i < genome.length; i++) {
+            if (genome[i] == 1) { indices.add(i); }
+        }
+
+        return indices;
+    }
+
+    public void restore(double rucksackCapacity) {
+
+        while (this.getItemsWeight() > rucksackCapacity) {
+
+            List<Integer> itemsIndices = this.getPresentItemsIndices();
+            if (itemsIndices.isEmpty()) {
+                System.out.println("W: nothing to drop from loadout " + 
+                    this);
+                break;
+            }
+
+            Integer minPriceIndex = itemsIndices.get(0);
+            double  minPrice = 
+                this.itemPool.get(itemsIndices.get(0)).getPrice();
+
+            // getting index appropriate to min price item 
+            for (Integer i : itemsIndices) {
+
+                double itemPrice = 
+                    this.itemPool.get(i).getPrice();
+                if (itemPrice < minPrice) {
+
+                    minPrice = itemPrice;
+                    minPriceIndex = i;
+                }
+            }
+
+            // removing that costless item to reduce weight
+            this.getGenome()[minPriceIndex] = 0;
+        }
+    } 
 
     @Override
     public String toString() {
@@ -157,7 +204,7 @@ public class RucksackTask {
         List<Item> itemPool = new ArrayList<>();
 
         for (int i = 0; i < itemNumber; i++) {
-            itemPool.add(new Item(rnd.nextDouble(), rnd.nextDouble()));
+            itemPool.add(new Item(rnd.nextDouble(), rnd.nextDouble()*2));
         }
 
         return itemPool;
@@ -176,19 +223,28 @@ public class RucksackTask {
         return new Loadout(binVector, itemPool);
     }
 
-    public void fillLoadoutsProbabilities(List<Loadout> loadouts, 
+    public void restoreLoadouts(List<Loadout> loadouts, 
         double rucksackCapacity) {
+
+        for (Loadout loadout : loadouts) {
+            loadout.restore(rucksackCapacity);
+        }
+    }
+
+    public void fillLoadoutsProbabilities(List<Loadout> loadouts, 
+        double rucksackCapacity, 
+        String penaltyType) {
 
         // in this method we assume all loadouts have non-negative fit values
         double sumValue = .0;
 
         for (Loadout loadout : loadouts) {
-            sumValue += loadout.getFitnessValue("log", rucksackCapacity);
+            sumValue += loadout.getFitnessValue(penaltyType, rucksackCapacity);
         }
 
         for (Loadout loadout : loadouts) {
             loadout.setReproductionProb(
-                loadout.getFitnessValue("log", rucksackCapacity) / sumValue);
+                loadout.getFitnessValue(penaltyType, rucksackCapacity) / sumValue);
         }
     }
 
@@ -222,6 +278,44 @@ public class RucksackTask {
         final int casesNumber = 30;
         final double rucksackCapacity = 35;
 
+        if (args.length < 1) {
+
+            System.err.println("Usage: <class name> <method>" + 
+                        " [<options>]");
+            System.err.println("Available methods: penalty, restoration");
+            return;
+        }
+
+        boolean useRestoration = false;
+        String method = args[0];
+        String penaltyType = "none";
+
+        switch (method) {
+
+            case "penalty": 
+
+                if (args.length < 2) {
+
+                    System.err.println("For using method \'penalty\'" + 
+                        " specify penalty type");
+                    System.err.println("Usage: <class name> <method>" + 
+                        " [<penalty type>]");
+                    return;
+                }
+
+                penaltyType = args[1];
+                break;
+
+            case "restoration":
+                useRestoration = true;
+                break;
+
+            default: 
+                System.err.println("Unknown method: " + method);
+                System.err.println("Available methods: penalty, restoration");
+                return;
+        }
+
         RucksackTask rt = new RucksackTask();
         List<Item> itemPool = rt.generateItemPool(poolSize);
         List<Loadout> loadoutList = new ArrayList<>();
@@ -242,7 +336,12 @@ public class RucksackTask {
         params.setPercentage(0.75);
         geneticProcess.setParameters(params);
 
-        rt.fillLoadoutsProbabilities(loadoutList, rucksackCapacity);
+        if (useRestoration) { 
+            rt.restoreLoadouts(loadoutList, rucksackCapacity); 
+        }
+
+        rt.fillLoadoutsProbabilities(loadoutList, 
+            rucksackCapacity, penaltyType);
         List<Organism> organisms = new ArrayList<>(loadoutList);
         geneticProcess.setCurOrganisms(organisms);
         rt.showMaxMin(loadoutList);
@@ -257,7 +356,12 @@ public class RucksackTask {
                 newLoadouts.add(new Loadout(org.getGenome(), itemPool));
             }
 
-            rt.fillLoadoutsProbabilities(newLoadouts, rucksackCapacity);
+            if (useRestoration) { 
+                rt.restoreLoadouts(newLoadouts, rucksackCapacity);
+            }
+
+            rt.fillLoadoutsProbabilities(newLoadouts, 
+                rucksackCapacity, penaltyType);
 
             for (int j = 0; j < newOrganisms.size(); j++) {
                 newOrganisms.get(j).setReproductionProb(

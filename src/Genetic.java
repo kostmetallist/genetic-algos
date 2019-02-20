@@ -14,6 +14,10 @@ class Organism {
         return this.genome;
     }
 
+    public void setGenome(byte[] genome) {
+        this.genome = genome;
+    }
+
     public double getReproductionProb() {
         return this.reproductionProb;
     }
