@@ -66,7 +66,7 @@ class Loadout extends Organism {
         return itemsWeight;
     }
 
-    public double getFitnessValue() {
+    public double calculateFitnessValue() {
 
         double fitValue = .0;
         byte[] items = this.getGenome();
@@ -78,7 +78,7 @@ class Loadout extends Organism {
         return fitValue;
     }
 
-    public double getFitnessValue(String penaltyType, 
+    public double calculateFitnessValue(String penaltyType, 
         double rucksackCapacity) {
 
         double fitValue = .0;
@@ -231,31 +231,23 @@ public class RucksackTask {
         }
     }
 
-    public void fillLoadoutsProbabilities(List<Loadout> loadouts, 
+    public void fillLoadoutsFitnessValues(List<Loadout> loadouts, 
         double rucksackCapacity, 
         String penaltyType) {
 
-        // in this method we assume all loadouts have non-negative fit values
-        double sumValue = .0;
-
-        for (Loadout loadout : loadouts) {
-            sumValue += loadout.getFitnessValue(penaltyType, rucksackCapacity);
-        }
-
-        for (Loadout loadout : loadouts) {
-            loadout.setReproductionProb(
-                loadout.getFitnessValue(penaltyType, rucksackCapacity) / sumValue);
-        }
+        loadouts.forEach(loadout -> 
+            loadout.setFitnessValue(
+                loadout.calculateFitnessValue(penaltyType, rucksackCapacity)));
     }
 
     public void showMaxMin(List<Loadout> loadouts) {
 
-        double max = loadouts.get(0).getFitnessValue();
-        double min = loadouts.get(0).getFitnessValue();
+        double max = loadouts.get(0).calculateFitnessValue();
+        double min = loadouts.get(0).calculateFitnessValue();
 
         for (Loadout loadout : loadouts) {
 
-            double fitValue = loadout.getFitnessValue();
+            double fitValue = loadout.calculateFitnessValue();
 
             if (fitValue > max) {
                 max = fitValue;
@@ -276,6 +268,7 @@ public class RucksackTask {
         // that also defines genome's size
         final int poolSize = 80;
         final int casesNumber = 30;
+        final int iterationsNum = 20;
         final double rucksackCapacity = 35;
 
         if (args.length < 1) {
@@ -330,8 +323,8 @@ public class RucksackTask {
 
         Genetic geneticProcess = new Genetic(poolSize);
         Genetic.Parameters params = geneticProcess.new Parameters();
-        params.setCrossingoverProb(0.8);
-        params.setMutationProb(0.1);
+        params.setCrossingoverProb(0.7);
+        params.setMutationProb(0.2);
         params.setDelta(0.05);
         params.setPercentage(0.75);
         geneticProcess.setParameters(params);
@@ -340,13 +333,13 @@ public class RucksackTask {
             rt.restoreLoadouts(loadoutList, rucksackCapacity); 
         }
 
-        rt.fillLoadoutsProbabilities(loadoutList, 
+        rt.fillLoadoutsFitnessValues(loadoutList, 
             rucksackCapacity, penaltyType);
         List<Organism> organisms = new ArrayList<>(loadoutList);
         geneticProcess.setCurOrganisms(organisms);
         rt.showMaxMin(loadoutList);
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < iterationsNum; i++) {
 
             geneticProcess.doGenerationStep();
             List<Organism> newOrganisms = geneticProcess.getCurOrganisms();
@@ -360,13 +353,13 @@ public class RucksackTask {
                 rt.restoreLoadouts(newLoadouts, rucksackCapacity);
             }
 
-            rt.fillLoadoutsProbabilities(newLoadouts, 
+            rt.fillLoadoutsFitnessValues(newLoadouts, 
                 rucksackCapacity, penaltyType);
 
-            for (int j = 0; j < newOrganisms.size(); j++) {
-                newOrganisms.get(j).setReproductionProb(
-                    newLoadouts.get(j).getReproductionProb());
-            }
+            // for (int j = 0; j < newOrganisms.size(); j++) {
+            //     newOrganisms.get(j).setReproductionProb(
+            //         newLoadouts.get(j).getReproductionProb());
+            // }
 
             System.out.println("--------------------------------------");
             rt.showMaxMin(newLoadouts);

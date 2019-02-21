@@ -4,7 +4,8 @@ import java.util.*;
 class Organism {
 
     private byte[] genome;
-    private double reproductionProb;
+    private double fitnessValue;
+    public double reproductionProbability;
 
     public Organism(byte[] genome) {
         this.genome = genome;
@@ -18,12 +19,12 @@ class Organism {
         this.genome = genome;
     }
 
-    public double getReproductionProb() {
-        return this.reproductionProb;
+    public double getFitnessValue() {
+        return this.fitnessValue;
     }
 
-    public void setReproductionProb(double prob) {
-        this.reproductionProb = prob;
+    public void setFitnessValue(double fitnessValue) {
+        this.fitnessValue = fitnessValue;
     }
 }
 
@@ -182,17 +183,59 @@ public class Genetic {
         return (locallyPlaced/values.size() > parameters.getPercentage());
     }
 
-    // careful -- modifies curOrganisms
-    // assure you have assigned probabilities to organisms
+    private void fillReproductionProbs(List<Organism> organisms) {
+
+        if (!organisms.isEmpty()) {
+
+            double minFitness = organisms.get(0).getFitnessValue();
+            for (Organism org : organisms) {
+
+                double fitVal = org.getFitnessValue();
+                org.reproductionProbability = fitVal;
+                if (fitVal < minFitness) {
+                    minFitness = fitVal;
+                }
+            }
+
+            // We need all positive values to construct probabilites.
+            // In case of negative just lift up all the values.
+            if (minFitness < 0) {
+
+                // `liftingDelta` describes difference between min fitness
+                // value and zero.
+                double liftingDelta = 1;
+                for (Organism org : organisms) {
+                    org.reproductionProbability += liftingDelta - minFitness;
+                }
+            }
+
+            double sumValue = .0;
+            for (Organism org : organisms) {
+                sumValue += org.reproductionProbability;
+            }
+            
+            for (Organism org : organisms) {
+                org.reproductionProbability /= sumValue;
+            }
+        }
+
+        else {
+            System.err.println("fillReproductionProbs: organisms is empty");
+        }
+    }
+
+    // Careful -- modifies curOrganisms.
+    // Assure you have assigned fitness values to organisms.
     public void doGenerationStep() {
 
         List<Organism> selected = new ArrayList<>();
         List<Double> probNodes = new ArrayList<>();
-        double accumulator = 0.0;
 
+        fillReproductionProbs(curOrganisms);
+        double accumulator = 0.0;
         for (Organism each : curOrganisms) {
 
-            accumulator += each.getReproductionProb();
+            accumulator += each.reproductionProbability;
             probNodes.add(accumulator);
         }
 
