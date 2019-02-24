@@ -1,5 +1,7 @@
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.regex.Pattern;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -30,10 +32,29 @@ class Town {
 // neighbour representation of towns in list
 class Voyage extends Organism {
 
-    private static List<Town> townsList;
+    private static List<Town> townsList = null;
 
-    public Voyage(byte[] neighbourList) {
-        super(neighbourList);
+
+    // `neighbourIndices` is an array of different `townsList` indices.
+    // It must contain all possible indices of `townsList` and thus
+    // be the same length as that list.
+    public Voyage(byte[] neighbourIndices) {
+
+        // `indicesEntries` contains [0, n-1] where n is the `townsList` size
+        // List<Byte> indicesEntries = new ArrayList<>();
+        // for (byte i = 0; i < townsList.size(); i++) {
+        //     indicesEntries.add(i);
+        // }
+
+        // for (byte i = 0; i < neighbourIndices.length; i++) {
+        //     if (!indicesEntries.remove(neighbourIndices[i])) {
+        //         System.err.println("alarm");
+        //     }
+        // }
+
+        // TODO validation
+
+        super(neighbourIndices);
     }
 
     public static void setTownsList(List<Town> tl) {
@@ -63,6 +84,29 @@ class Voyage extends Organism {
         }
 
         return traversal;
+    }
+
+    // checks whether this instance represents hamilton cycle
+    public boolean isProper() {
+
+        byte[] traversal = this.getTownsTraversal();
+        Map<Byte, Boolean> travExpectedContents = new HashMap<>();
+        for (byte i = 0; i < traversal.length; i++) {
+            travExpectedContents.put(i, true);
+        }
+
+        for (byte i = 0; i < traversal.length; i++) {
+
+            if (travExpectedContents.get(traversal[i])) {
+                travExpectedContents.put(traversal[i], false);
+            }
+
+            else {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
@@ -116,11 +160,16 @@ public class TspTask {
         // Voyage.showTowns();
         byte[] arr1 = {1, 3, 7, 2, 8, 6, 0, 4, 5};
         Voyage v1 = new Voyage(arr1);
-        byte[] decoded = v1.getTownsTraversal();
+        //byte[] decoded = v1.getTownsTraversal();
+        byte[] arr2 = {1, 3, 7, 0, 8, 2, 4, 6, 5};
+        Voyage v2 = new Voyage(arr2);
 
-        for (int i = 0; i < 9; i++) {
-            System.out.print(String.format("%d ", decoded[i]));
-        }
+        System.out.println(v1.isProper());
+        System.out.println(v2.isProper());
+
+        // for (int i = 0; i < 9; i++) {
+        //     System.out.print(String.format("%d ", decoded[i]));
+        // }
         System.out.println();
     }
 }

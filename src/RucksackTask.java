@@ -356,10 +356,10 @@ public class RucksackTask {
             rt.fillLoadoutsFitnessValues(newLoadouts, 
                 rucksackCapacity, penaltyType);
 
-            // for (int j = 0; j < newOrganisms.size(); j++) {
-            //     newOrganisms.get(j).setReproductionProb(
-            //         newLoadouts.get(j).getReproductionProb());
-            // }
+            for (int j = 0; j < newOrganisms.size(); j++) {
+                newOrganisms.get(j).setFitnessValue(
+                    newLoadouts.get(j).getFitnessValue());
+            }
 
             System.out.println("--------------------------------------");
             rt.showMaxMin(newLoadouts);
