@@ -5,6 +5,7 @@ class Organism {
 
     private byte[] genome;
     private double fitnessValue;
+    private Random rand = new Random();
     public double reproductionProbability;
 
     public Organism(byte[] genome) {
@@ -36,7 +37,6 @@ class Organism {
     public Organism[] crossWith(Organism another) {
 
         int genomeLength = this.genome.length;
-        Random rand = new Random();
         int crossingoverPoint = rand.nextInt(genomeLength-1) + 1;
         byte[] newGenome1 = new byte[genomeLength], 
             newGenome2 = new byte[genomeLength];
@@ -69,11 +69,23 @@ class Organism {
 
         return mutant;
     }
+
+    @Override 
+    public String toString() {
+
+        String output = new String();
+        for (byte gen : this.getGenome()) {
+            output += gen + " ";
+        }
+
+        return output;
+    }
 }
 
 
 public class Genetic {
 
+    private Random rand = new Random();
     private int genomeLength;
 
     // genetic algorithm related parameters
@@ -162,8 +174,6 @@ public class Genetic {
     }
 
     public void makeRandomColony(int n) {
-
-        Random rand = new Random();
 
         for (int i = 0; i < n; i++) {
 
@@ -285,8 +295,6 @@ public class Genetic {
         probNodes.remove(probNodes.size()-1);
 
         // reproducing
-        Random rand = new Random();
-
         for (int i = 0; i < curOrganisms.size(); i++) {
 
             int index = getInterval(rand.nextDouble(), probNodes);
@@ -327,22 +335,22 @@ public class Genetic {
         }
 
         // mutation
-        // for (Organism each : afterCrossing) {
+        for (Organism each : afterCrossing) {
 
-        //     // mutate this organism?
-        //     if (rand.nextDouble() >= parameters.getMutationProb()) {
-        //         continue;
-        //     }
+            // mutate this organism?
+            if (rand.nextDouble() >= parameters.getMutationProb()) {
+                continue;
+            }
 
-        //     List<Integer> gensToMutate = new ArrayList<>();
-        //     for (int i = 0; i < genomeLength; i++) {
-        //         if (rand.nextDouble() < parameters.getMutationProb()) {
-        //             gensToMutate.add(i);
-        //         }
-        //     }
+            List<Integer> gensToMutate = new ArrayList<>();
+            for (int i = 0; i < genomeLength; i++) {
+                if (rand.nextDouble() < parameters.getMutationProb()) {
+                    gensToMutate.add(i);
+                }
+            }
 
-        //     //each = each.mutateGens(gensToMutate);
-        // }
+            each = each.mutateGens(gensToMutate);
+        }
         
         curOrganisms = afterCrossing;
     }

@@ -324,7 +324,7 @@ public class RucksackTask {
         Genetic geneticProcess = new Genetic(poolSize);
         Genetic.Parameters params = geneticProcess.new Parameters();
         params.setCrossingoverProb(0.7);
-        params.setMutationProb(0.2);
+        params.setMutationProb(0.3);
         params.setDelta(0.05);
         params.setPercentage(0.75);
         geneticProcess.setParameters(params);
