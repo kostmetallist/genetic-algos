@@ -91,8 +91,6 @@ class Voyage extends Organism {
     // be the same length as that list.
     public Voyage(byte[] neighbourIndices) {
 
-        // TODO validation
-
         super(neighbourIndices);
     }
 
@@ -183,12 +181,6 @@ class Voyage extends Organism {
     // gets byte[] representing towns traversal & encodes to neighbour indices
     public static byte[] encode(byte[] traversal) {
 
-        // System.out.println("traversal:");
-        // for (byte each : traversal) {
-        //     System.out.print(each + " ");
-        // }
-        // System.out.println();
-
         byte[] indices = new byte[traversal.length];
 
         if (traversal.length == 0) {
@@ -200,12 +192,6 @@ class Voyage extends Organism {
         }
 
         indices[traversal[traversal.length-1]] = traversal[0];
-
-        // System.out.println("encoded:");
-        // for (byte each : indices) {
-        //     System.out.print(each + " ");
-        // }
-        // System.out.println();
         return indices;
     }
 
@@ -325,11 +311,6 @@ class Voyage extends Organism {
 
     @Override
     public Voyage mutateGens(List<Integer> genIndices) {
-
-        // System.out.println("before mutation:");
-        // System.out.println(this);
-        // encode(this.getTownsTraversal());
-
 
         // ignoring `genIndices` in this implementation
         Voyage mutant = new Voyage(this);
@@ -484,17 +465,6 @@ public class TspTask {
 
         List<Town> townsList = readTownsFile("data/towns.txt");
         Voyage.setTownsList(townsList);
-        // Voyage.showTowns();
-
-        // byte[] arr1 = {1, 4, 3, 5, 2, 0};
-        // Voyage v1 = new Voyage(arr1);
-        // byte[] decoded1 = v1.getTownsTraversal();
-        // byte[] arr2 = {4, 0, 1, 5, 3, 2};
-        // Voyage v2 = new Voyage(arr2);
-        // byte[] decoded2 = v2.getTownsTraversal();
-        // Voyage[] children = v1.crossWith(v2);
-        // System.out.println(children[0]);
-        // System.out.println(v1.mutateGens(new ArrayList<>()));
 
         System.out.println("/// SOLUTION \\\\\\");
         byte[] solTraversal = {
@@ -506,13 +476,12 @@ public class TspTask {
             72};
         Voyage solution = new Voyage(Voyage.encode(solTraversal));
         System.out.println(solution.getTotalDistance());
+        solution.printoutTownsTraversal();
         System.out.println("/// SOLUTION \\\\\\");
 
 
         List<Voyage> voyages = 
             generateRandomVoyages((byte) townsList.size(), 20);
-
-        //voyages.forEach(System.out::println);
 
         Genetic geneticProcess = new Genetic(townsList.size());
         Genetic.Parameters params = geneticProcess.new Parameters();
@@ -523,7 +492,6 @@ public class TspTask {
         fillVoyagesFitnessValues(voyages);
         List<Organism> organisms = new ArrayList<>(voyages);
         geneticProcess.setCurOrganisms(organisms);
-        //showMaxMin(voyages);
 
         final int iterationsNum = 30;
         for (int i = 0; i < iterationsNum; i++) {
