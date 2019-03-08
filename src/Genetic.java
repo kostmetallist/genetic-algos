@@ -3,9 +3,10 @@ import java.util.*;
 
 class Organism {
 
+    private static Random rand = new Random();
+
     private byte[] genome;
     private double fitnessValue;
-    private Random rand = new Random();
     public double reproductionProbability;
 
     public Organism(byte[] genome) {
