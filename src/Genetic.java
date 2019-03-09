@@ -1,28 +1,110 @@
 import java.util.*;
 
 
-class Organism {
+// class Organism {
 
-    private static Random rand = new Random();
+//     private static Random rand = new Random();
 
-    private byte[] genome;
+//     private byte[] genome;
+//     private double fitnessValue;
+//     public double reproductionProbability;
+
+//     public Organism(byte[] genome) {
+//         this.genome = genome;
+//     }
+
+//     // implements deep copy of `another`
+//     public Organism(Organism another) {
+//         this.genome = another.getGenome().clone();
+//     }
+
+//     public byte[] getGenome() {
+//         return this.genome;
+//     }
+
+//     public void setGenome(byte[] genome) {
+//         this.genome = genome;
+//     }
+
+//     public double getFitnessValue() {
+//         return this.fitnessValue;
+//     }
+
+//     public void setFitnessValue(double fitnessValue) {
+//         this.fitnessValue = fitnessValue;
+//     }
+
+//     // Imitates children generation
+//     public Organism[] crossWith(Organism another) {
+
+//         int genomeLength = this.genome.length;
+//         int crossingoverPoint = rand.nextInt(genomeLength-1) + 1;
+//         byte[] newGenome1 = new byte[genomeLength], 
+//             newGenome2 = new byte[genomeLength];
+
+//         for (int j = 0; j < crossingoverPoint; j++) {
+//             newGenome1[j] = this.genome[j];
+//             newGenome2[j] = another.genome[j];
+//         }
+
+//         for (int j = crossingoverPoint; j < genomeLength; j++) {
+//             newGenome1[j] = another.genome[j];
+//             newGenome2[j] = this.genome[j];
+//         }
+
+//         Organism offspring1 = new Organism(newGenome1);
+//         Organism offspring2 = new Organism(newGenome2);
+//         Organism[] result = {offspring1, offspring2};
+
+//         return result;
+//     }
+
+//     public Organism mutateGens(List<Integer> genIndices) {
+
+//         Organism mutant = new Organism(this);
+//         byte[] mutantGenome = mutant.getGenome();
+
+//         for (int index : genIndices) {
+//             mutantGenome[index] = (byte) ((mutantGenome[index] == 1)? 0: 1);
+//         }
+
+//         return mutant;
+//     }
+
+//     @Override 
+//     public String toString() {
+
+//         String output = new String();
+//         for (byte gen : this.getGenome()) {
+//             output += gen + " ";
+//         }
+
+//         return output;
+//     }
+// }
+
+abstract class Organism {
+
+    protected static Random rand = new Random();
+
+    protected Number[] genome;
     private double fitnessValue;
-    public double reproductionProbability;
+    public  double reproductionProbability;
 
-    public Organism(byte[] genome) {
-        this.genome = genome;
-    }
+    // public Organism(byte[] genome) {
+    //     this.genome = genome;
+    // }
 
-    // implements deep copy of `another`
-    public Organism(Organism another) {
-        this.genome = another.getGenome().clone();
-    }
+    // // implements deep copy of `another`
+    // public Organism(Organism another) {
+    //     this.genome = another.getGenome().clone();
+    // }
 
-    public byte[] getGenome() {
+    public Number[] getGenome() {
         return this.genome;
     }
 
-    public void setGenome(byte[] genome) {
+    public void setGenome(Number[] genome) {
         this.genome = genome;
     }
 
@@ -35,47 +117,49 @@ class Organism {
     }
 
     // Imitates children generation
-    public Organism[] crossWith(Organism another) {
+    abstract public Organism[] crossWith(Organism another);
+    // public Organism[] crossWith(Organism another) {
 
-        int genomeLength = this.genome.length;
-        int crossingoverPoint = rand.nextInt(genomeLength-1) + 1;
-        byte[] newGenome1 = new byte[genomeLength], 
-            newGenome2 = new byte[genomeLength];
+    //     int genomeLength = this.genome.length;
+    //     int crossingoverPoint = rand.nextInt(genomeLength-1) + 1;
+    //     byte[] newGenome1 = new byte[genomeLength], 
+    //         newGenome2 = new byte[genomeLength];
 
-        for (int j = 0; j < crossingoverPoint; j++) {
-            newGenome1[j] = this.genome[j];
-            newGenome2[j] = another.genome[j];
-        }
+    //     for (int j = 0; j < crossingoverPoint; j++) {
+    //         newGenome1[j] = this.genome[j];
+    //         newGenome2[j] = another.genome[j];
+    //     }
 
-        for (int j = crossingoverPoint; j < genomeLength; j++) {
-            newGenome1[j] = another.genome[j];
-            newGenome2[j] = this.genome[j];
-        }
+    //     for (int j = crossingoverPoint; j < genomeLength; j++) {
+    //         newGenome1[j] = another.genome[j];
+    //         newGenome2[j] = this.genome[j];
+    //     }
 
-        Organism offspring1 = new Organism(newGenome1);
-        Organism offspring2 = new Organism(newGenome2);
-        Organism[] result = {offspring1, offspring2};
+    //     Organism offspring1 = new Organism(newGenome1);
+    //     Organism offspring2 = new Organism(newGenome2);
+    //     Organism[] result = {offspring1, offspring2};
 
-        return result;
-    }
+    //     return result;
+    // }
 
-    public Organism mutateGens(List<Integer> genIndices) {
+    abstract public Organism mutateGens(List<Integer> genIndices);
+    // public Organism mutateGens(List<Integer> genIndices) {
 
-        Organism mutant = new Organism(this);
-        byte[] mutantGenome = mutant.getGenome();
+    //     Organism mutant = new Organism(this);
+    //     byte[] mutantGenome = mutant.getGenome();
 
-        for (int index : genIndices) {
-            mutantGenome[index] = (byte) ((mutantGenome[index] == 1)? 0: 1);
-        }
+    //     for (int index : genIndices) {
+    //         mutantGenome[index] = (byte) ((mutantGenome[index] == 1)? 0: 1);
+    //     }
 
-        return mutant;
-    }
+    //     return mutant;
+    // }
 
     @Override 
     public String toString() {
 
         String output = new String();
-        for (byte gen : this.getGenome()) {
+        for (Number gen : this.getGenome()) {
             output += gen + " ";
         }
 
@@ -94,6 +178,7 @@ public class Genetic {
     private List<Organism> curOrganisms = new ArrayList<>();
 
 
+    // TODO declare static & make changes in using classes
     public class Parameters {
 
         // TODO assertions [0,1] for all probs
@@ -174,32 +259,8 @@ public class Genetic {
         this.curOrganisms = curOrganisms;
     }
 
-    public void makeRandomColony(int n) {
-
-        for (int i = 0; i < n; i++) {
-
-            byte[] genome = new byte[genomeLength];
-
-            for (int j = 0; j < genomeLength; j++) {
-                genome[j] = (byte) (rand.nextBoolean()? 1 : 0);
-            }
-
-            Organism org = new Organism(genome);
-            curOrganisms.add(org);
-        }
-    }
-
     public void showOrganisms() {
-
-        System.out.println("Current organisms:");
-
-        for (Organism every : this.curOrganisms) {
-
-            for (int i = 0; i < genomeLength; i++)
-                System.out.print(every.getGenome()[i] + "");
-
-            System.out.println();
-        }
+        this.curOrganisms.forEach(System.out::println);
     }
 
     // markup contains values describing division points of segment, 
@@ -274,7 +335,7 @@ public class Genetic {
         }
 
         else {
-            System.err.println("fillReproductionProbs: organisms is empty");
+            System.err.println("fillReproductionProbs: `organisms` is empty");
         }
     }
 

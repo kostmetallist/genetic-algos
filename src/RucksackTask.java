@@ -36,16 +36,15 @@ class Item {
     }
 }
 
-
 class Loadout extends Organism {
 
     final private List<Item> itemPool;
 
 
     // attention: for simplicity, there is a shallow copying
-    public Loadout(byte[] genome, List<Item> itemPool) {
+    public Loadout(Number[] genome, List<Item> itemPool) {
 
-        super(genome);
+        this.genome = genome;
         this.itemPool = itemPool;
 
         if (genome.length != itemPool.size()) {
@@ -54,13 +53,20 @@ class Loadout extends Organism {
         }
     }
 
+    // deep copying
+    public Loadout(Loadout another) {
+
+        this.genome = another.genome.clone();
+        this.itemPool = another.itemPool;
+    }
+
     public double getItemsWeight() {
 
         double itemsWeight = .0;
-        byte[] items = this.getGenome();
+        Number[] items = this.getGenome();
 
         for (int i = 0; i < items.length; i++) {
-            itemsWeight += items[i] * itemPool.get(i).getWeight();
+            itemsWeight += items[i].byteValue() * itemPool.get(i).getWeight();
         }
 
         return itemsWeight;
@@ -69,10 +75,10 @@ class Loadout extends Organism {
     public double calculateFitnessValue() {
 
         double fitValue = .0;
-        byte[] items = this.getGenome();
+        Number[] items = this.getGenome();
 
         for (int i = 0; i < items.length; i++) {
-            fitValue += items[i] * itemPool.get(i).getPrice();
+            fitValue += items[i].byteValue() * itemPool.get(i).getPrice();
         }
 
         return fitValue;
@@ -82,11 +88,11 @@ class Loadout extends Organism {
         double rucksackCapacity) {
 
         double fitValue = .0;
-        final byte[] items = this.getGenome();
+        final Number[] items = this.getGenome();
         final double mult = 1.5;
 
         for (int i = 0; i < items.length; i++) {
-            fitValue += items[i] * itemPool.get(i).getPrice();
+            fitValue += items[i].byteValue() * itemPool.get(i).getPrice();
         }
 
         // System.out.println("FITNESS BEFORE: " + fitValue + "LOADOUT WEIGHT: " + 
@@ -132,7 +138,6 @@ class Loadout extends Organism {
 
         double logArgument = 
             1 + getLinearPenalty(rucksackCapacity, multiplier);
-        //System.out.println("la " + logArgument);
         // getting log2
         return Math.log(logArgument) / Math.log(2);
     }
@@ -140,10 +145,10 @@ class Loadout extends Organism {
     private List<Integer> getPresentItemsIndices() {
 
         List<Integer> indices = new ArrayList<>();
-        byte[] genome = this.getGenome();
+        Number[] genome = this.getGenome();
 
         for (int i = 0; i < genome.length; i++) {
-            if (genome[i] == 1) { indices.add(i); }
+            if (genome[i].byteValue() == 1) { indices.add(i); }
         }
 
         return indices;
@@ -177,21 +182,47 @@ class Loadout extends Organism {
             }
 
             // removing that costless item to reduce weight
-            this.getGenome()[minPriceIndex] = 0;
+            this.getGenome()[minPriceIndex] = (byte) 0;
         }
     } 
 
     @Override
-    public String toString() {
+    public Organism[] crossWith(Organism another) {
 
-        String output = new String();
-        byte[] items = this.getGenome();
+        int genomeLength = this.genome.length;
+        int crossingoverPoint = rand.nextInt(genomeLength-1) + 1;
+        Byte[] newGenome1 = new Byte[genomeLength], 
+            newGenome2 = new Byte[genomeLength];
 
-        for (int i = 0; i < items.length; i++) {
-            output += items[i];
+        for (int j = 0; j < crossingoverPoint; j++) {
+            newGenome1[j] = this.genome[j].byteValue();
+            newGenome2[j] = another.genome[j].byteValue();
         }
 
-        return output;
+        for (int j = crossingoverPoint; j < genomeLength; j++) {
+            newGenome1[j] = another.genome[j].byteValue();
+            newGenome2[j] = this.genome[j].byteValue();
+        }
+
+        Organism offspring1 = new Loadout(newGenome1, this.itemPool);
+        Organism offspring2 = new Loadout(newGenome2, this.itemPool);
+        Organism[] result = {offspring1, offspring2};
+
+        return result;
+    }
+
+    @Override
+    public Organism mutateGens(List<Integer> genIndices) {
+
+        Organism mutant = new Loadout(this);
+        Number[] mutantGenome = mutant.getGenome();
+
+        for (int index : genIndices) {
+            mutantGenome[index] = 
+                (byte) ((mutantGenome[index].byteValue() == 1)? 0: 1);
+        }
+
+        return mutant;
     }
 }
 
@@ -213,7 +244,7 @@ public class RucksackTask {
     public Loadout generateRandomLoadout(List<Item> itemPool) {
 
         Random rnd = new Random();
-        byte[] binVector = new byte[itemPool.size()];
+        Byte[] binVector = new Byte[itemPool.size()];
 
         for (int i = 0; i < itemPool.size(); i++) {
 
