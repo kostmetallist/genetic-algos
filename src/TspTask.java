@@ -39,7 +39,7 @@ class Town {
 }
 
 
-class SearchableSet extends HashSet<Byte> {
+class SearchableSet extends HashSet<Number> {
 
     private static Random rand = new Random();
 
@@ -48,23 +48,27 @@ class SearchableSet extends HashSet<Byte> {
         super();
     }
 
-    public Byte searchFor(Byte value) {
+    public Number searchFor(Number value) {
 
-        for (Byte each : this) {
-            if (each.byteValue() == value.byteValue())
+        if (value == null) {
+            return null;
+        }
+
+        for (Number each : this) {
+            if (each.intValue() == value.intValue())
                 return each;
         }
 
         return null;
     }
 
-    public Byte getRandomElement() {
+    public Number getRandomElement() {
 
-        byte randIndex = (byte) rand.nextInt(this.size());
-        byte i = 0;
-        Byte extracted = null;
+        int randIndex = rand.nextInt(this.size());
+        int i = 0;
+        Number extracted = null;
 
-        for (Byte each : this) {
+        for (Number each : this) {
 
             if (i == randIndex) {
                 extracted = each;
@@ -89,13 +93,13 @@ class Voyage extends Organism {
     // `neighbourIndices` is an array of different `townsList` indices.
     // It must contain all possible indices of `townsList` and thus
     // be the same length as that list.
-    public Voyage(byte[] neighbourIndices) {
+    public Voyage(Number[] neighbourIndices) {
 
-        super(neighbourIndices);
+        this.genome = neighbourIndices;
     }
 
     public Voyage(Voyage another) {
-        super(another);
+        this.genome = another.genome.clone();
     }
 
     public static void setTownsList(List<Town> tl) {
@@ -108,21 +112,27 @@ class Voyage extends Organism {
 
     // Returns decoded neighbourList (`genome`).
     // `traversal` represents towns' indices.
-    public byte[] getTownsTraversal() {
+    public Number[] getTownsTraversal() {
 
-        byte[] genome = this.getGenome();
-        byte[] traversal = new byte[genome.length];
+        Number[] genome = this.getGenome();
+        Number[] traversal = new Number[genome.length];
         // we assume any traversal is Hamilton Cycle, so 
         // first element may be any, if cyclic transform is performed
         traversal[0] = 0;
-        byte index = 0;
+        int index = 0;
         int i = 1;
 
-        while (genome[index] != 0) {
+        while (genome[index].intValue() != 0) {
             traversal[i] = genome[index];
-            index = genome[index];
+            index = genome[index].intValue();
             i++;
         }
+
+        // System.out.println(this);
+        // for (int j = 0; j < traversal.length; j++) {
+        //     System.out.print(traversal[j] + " ");
+        // }
+        // System.out.println();
 
         return traversal;
     }
@@ -130,41 +140,54 @@ class Voyage extends Organism {
     // checks whether this instance represents hamilton cycle
     public boolean isProper() {
 
-        byte[] traversal = this.getTownsTraversal();
-        Map<Byte, Boolean> travExpectedContents = new HashMap<>();
-        for (byte i = 0; i < traversal.length; i++) {
+        Number[] traversal = this.getTownsTraversal();
+        Map<Integer, Boolean> travExpectedContents = new HashMap<>();
+        for (int i = 0; i < traversal.length; i++) {
             travExpectedContents.put(i, true);
         }
 
-        for (byte i = 0; i < traversal.length; i++) {
+        for (int i = 0; i < traversal.length; i++) {
 
-            if (travExpectedContents.get(traversal[i])) {
-                travExpectedContents.put(traversal[i], false);
+            try {
+
+                if (travExpectedContents.get(traversal[i].intValue())) {
+                    travExpectedContents.put(traversal[i].intValue(), false);
+                }
+
+                else {
+                    //System.out.println("false");
+                    return false;
+                }
             }
 
-            else {
+            catch (NullPointerException e) {
+
+                //e.printStackTrace();
+                //System.out.println("false");
                 return false;
             }
         }
 
+        //System.out.println("true");
         return true;
     }
 
     // calculates summary of all distances between towns in voyage
     public double getTotalDistance() {
 
-        byte[] traversal = this.getTownsTraversal();
+        Number[] traversal = this.getTownsTraversal();
         double total = .0;
         // this cycle won't go if traversal.length <= 1
-        for (byte i = 1; i < traversal.length; i++) {
-            total += townsList.get(i-1).distTo(townsList.get(i));
+        for (int i = 1; i < traversal.length; i++) {
+            total += townsList.get(traversal[i-1].intValue()).
+                distTo(townsList.get(traversal[i].intValue()));
         }
 
         // Looping distance.
         // But in this case need to check for 1+ towns in voyage
         if (traversal.length > 1) {
             total += 
-                townsList.get(traversal[traversal.length-1]).
+                townsList.get(traversal[traversal.length-1].intValue()).
                 distTo(townsList.get(0));
         }
 
@@ -178,45 +201,45 @@ class Voyage extends Organism {
     }
 
 
-    // gets byte[] representing towns traversal & encodes to neighbour indices
-    public static byte[] encode(byte[] traversal) {
+    // gets Number[] representing towns traversal & encodes to neighbour indices
+    public static Number[] encode(Number[] traversal) {
 
-        byte[] indices = new byte[traversal.length];
+        Number[] indices = new Number[traversal.length];
 
         if (traversal.length == 0) {
             return indices;
         }
 
-        for (byte i = 1; i < indices.length; i++) {
-            indices[traversal[i-1]] = traversal[i];
+        for (int i = 1; i < indices.length; i++) {
+            indices[traversal[i-1].intValue()] = traversal[i];
         }
 
-        indices[traversal[traversal.length-1]] = traversal[0];
+        indices[traversal[traversal.length-1].intValue()] = traversal[0];
         return indices;
     }
 
     public void printoutTownsTraversal() {
 
-        byte[] traversal = this.getTownsTraversal();
-        for (byte i = 0; i < traversal.length; i++) {
-            System.out.println(townsList.get(traversal[i]));
+        Number[] traversal = this.getTownsTraversal();
+        for (int i = 0; i < traversal.length; i++) {
+            System.out.println(townsList.get(traversal[i].intValue()));
         }
     }
 
     @Override 
     public Voyage[] crossWith(Organism another) {
 
-        final byte[] genome1 = this.getGenome();
-        final byte[] genome2 = another.getGenome();
+        final Number[] genome1 = this.genome;
+        final Number[] genome2 = another.genome;
 
-        byte rootTownNum = (byte) rand.nextInt(genome1.length);
+        int rootTownNum = rand.nextInt(genome1.length);
         // taking in count `rootTownNum` as a first
-        byte currentLength = 1;
+        int currentLength = 1;
 
-        byte[] newTraversal = new byte[genome1.length];
+        Number[] newTraversal = new Number[genome1.length];
         //Set<Byte> availableTownNums = new HashSet<>();
         SearchableSet availableTownNums = new SearchableSet();
-        for (byte i = 0; i < genome1.length; i++) {
+        for (int i = 0; i < genome1.length; i++) {
             availableTownNums.add(i);
         }
 
@@ -229,8 +252,8 @@ class Voyage extends Organism {
 
         while (currentLength < genome1.length) {
 
-            byte candidate1 = genome1[rootTownNum];
-            byte candidate2 = genome2[rootTownNum];
+            Number candidate1 = genome1[rootTownNum];
+            Number candidate2 = genome2[rootTownNum];
 
             // both candidates are already in `newTraversal`, so 
             // to avoid replication we need to choose random next town
@@ -238,10 +261,10 @@ class Voyage extends Organism {
             if (availableTownNums.searchFor(candidate1) == null &&
                 availableTownNums.searchFor(candidate2) == null) {
 
-                Byte townToRemove = availableTownNums.getRandomElement();
+                Number townToRemove = availableTownNums.getRandomElement();
                 newTraversal[currentLength] = townToRemove;
                 availableTownNums.remove(townToRemove);
-                rootTownNum = townToRemove;
+                rootTownNum = townToRemove.intValue();
             }
 
             else {
@@ -251,7 +274,7 @@ class Voyage extends Organism {
                     newTraversal[currentLength] = candidate2;
                     availableTownNums.remove(availableTownNums.
                         searchFor(candidate2));
-                    rootTownNum = candidate2;
+                    rootTownNum = candidate2.intValue();
                 }
 
                 else if (availableTownNums.searchFor(candidate2) == null) {
@@ -259,7 +282,7 @@ class Voyage extends Organism {
                     newTraversal[currentLength] = candidate1;
                     availableTownNums.remove(availableTownNums.
                         searchFor(candidate1));
-                    rootTownNum = candidate1;
+                    rootTownNum = candidate1.intValue();
                 }
 
                 // if both candidates are available to append, genetic 
@@ -269,16 +292,16 @@ class Voyage extends Organism {
 
                     double dist1 = 
                         townsList.get(rootTownNum).
-                        distTo(townsList.get(candidate1));
+                        distTo(townsList.get(candidate1.intValue()));
                     double dist2 = 
                         townsList.get(rootTownNum).
-                        distTo(townsList.get(candidate2));
+                        distTo(townsList.get(candidate2.intValue()));
 
-                    byte chosenOne = (dist1 > dist2)? candidate2: candidate1;
+                    Number chosenOne = (dist1 > dist2)? candidate2: candidate1;
                     newTraversal[currentLength] = chosenOne;
                     availableTownNums.remove(availableTownNums.
                         searchFor(chosenOne));
-                    rootTownNum = chosenOne;
+                    rootTownNum = chosenOne.intValue();
                 }
             }
 
@@ -287,6 +310,8 @@ class Voyage extends Organism {
 
         Voyage offspring1 = new Voyage(encode(newTraversal));
         Voyage offspring2;
+
+        offspring1.isProper();
 
         // taking stronger parent as a second offspring
         if (this.getFitnessValue() > another.getFitnessValue()) {
@@ -297,13 +322,15 @@ class Voyage extends Organism {
         // `Organism` -> `Voyage` is impossible
         else {
 
-            byte[] parentGenome = new byte[genome2.length];
-            for (byte i = 0; i < genome2.length; i++) {
+            Number[] parentGenome = new Number[genome2.length];
+            for (int i = 0; i < genome2.length; i++) {
                 parentGenome[i] = genome2[i];
             }
 
             offspring2 = new Voyage(parentGenome);
         }
+
+        offspring2.isProper();
 
         Voyage[] offsprings = {offspring1, offspring2};
         return offsprings;
@@ -314,29 +341,37 @@ class Voyage extends Organism {
 
         // ignoring `genIndices` in this implementation
         Voyage mutant = new Voyage(this);
-        byte[] mutantGenome = mutant.getGenome();
+        Number[] mutantGenome = mutant.genome;
 
-        byte first = (byte) rand.nextInt(mutantGenome.length);
-        byte second = (byte) rand.nextInt(mutantGenome.length);
-        byte temp = mutantGenome[first];
+        //System.out.println("before:");
+        //System.out.println(mutant);
+
+        int first = rand.nextInt(mutantGenome.length);
+        int second = rand.nextInt(mutantGenome.length);
+        Number temp = mutantGenome[first];
 
         mutantGenome[first] = mutantGenome[second];
         mutantGenome[second] = temp;
+
+        // for (int j = 0; j < traversal.length; j++) {
+        //     System.out.print(traversal[j] + " ");
+        // }
+        // System.out.println();
 
         if (mutant.isProper()) {
             return mutant;
         }
 
-        byte[] traversal = mutant.getTownsTraversal();
+        Number[] traversal = mutant.getTownsTraversal();
         SearchableSet availableIndices = new SearchableSet();
-        for (byte i = 0; i < traversal.length; i++) {
+        for (int i = 0; i < traversal.length; i++) {
             availableIndices.add(i);
         }
 
-        byte faultPosition = -1;
-        for (byte i = 0; i < traversal.length; i++) {
+        int faultPosition = -1;
+        for (int i = 0; i < traversal.length; i++) {
 
-            Byte searchResult = availableIndices.searchFor(traversal[i]);
+            Number searchResult = availableIndices.searchFor(traversal[i]);
 
             if (searchResult == null) {
                 faultPosition = i;
@@ -350,14 +385,15 @@ class Voyage extends Organism {
 
         while (!availableIndices.isEmpty()) {
 
-            Byte randomTown = availableIndices.getRandomElement();
+            Number randomTown = availableIndices.getRandomElement();
             traversal[faultPosition] = randomTown;
             availableIndices.remove(randomTown);
             faultPosition++;
         }
 
-        byte[] fixedMutantGenome = encode(traversal);
+        Number[] fixedMutantGenome = encode(traversal);
         mutant.setGenome(fixedMutantGenome);
+        //mutant.isProper();
         return mutant;
     }
 }
@@ -406,22 +442,22 @@ public class TspTask {
         return townsList;
     }
 
-    private static List<Voyage> generateRandomVoyages(byte townNum, 
+    private static List<Voyage> generateRandomVoyages(int townNum, 
         int outputSize) {
 
         List<Voyage> voyages = new LinkedList<>();
         for (int i = 0; i < outputSize; i++) {
 
-            byte[] traversal = new byte[townNum];
+            Number[] traversal = new Number[townNum];
             SearchableSet availableIndices = new SearchableSet();
-            for (byte n = 0; n < townNum; n++) {
+            for (int n = 0; n < townNum; n++) {
                 availableIndices.add(n);
             }
 
-            byte j = 0;
+            int j = 0;
             while (!availableIndices.isEmpty()) {
 
-                Byte extracted = availableIndices.getRandomElement();
+                Number extracted = availableIndices.getRandomElement();
                 traversal[j++] = extracted;
                 availableIndices.remove(extracted);
             }
@@ -467,7 +503,7 @@ public class TspTask {
         Voyage.setTownsList(townsList);
 
         System.out.println("/// SOLUTION \\\\\\");
-        byte[] solTraversal = {
+        Number[] solTraversal = {
             0 , 32, 62, 15, 2 , 43, 31, 8 , 38, 71, 57, 9 , 30, 54, 24, 
             49, 17, 23, 48, 22, 55, 40, 42, 41, 63, 21, 60, 20, 46, 35, 
             68, 70, 59, 69, 19, 36, 4,  14, 56, 12, 53, 18, 13, 58, 65, 
@@ -477,11 +513,12 @@ public class TspTask {
         Voyage solution = new Voyage(Voyage.encode(solTraversal));
         System.out.println(solution.getTotalDistance());
         solution.printoutTownsTraversal();
+        //solution.isProper();
         System.out.println("/// SOLUTION \\\\\\");
 
 
         List<Voyage> voyages = 
-            generateRandomVoyages((byte) townsList.size(), 20);
+            generateRandomVoyages(townsList.size(), 20);
 
         Genetic geneticProcess = new Genetic(townsList.size());
         Genetic.Parameters params = geneticProcess.new Parameters();
@@ -493,7 +530,7 @@ public class TspTask {
         List<Organism> organisms = new ArrayList<>(voyages);
         geneticProcess.setCurOrganisms(organisms);
 
-        final int iterationsNum = 30;
+        final int iterationsNum = 100;
         for (int i = 0; i < iterationsNum; i++) {
 
             geneticProcess.doGenerationStep();
