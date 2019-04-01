@@ -11,6 +11,7 @@ import java.io.IOException;
 
 abstract class EntryContent {
     abstract public double getData(List<Double> arguments);
+    abstract public int getArgumentsNumber();
 }
 
 
@@ -37,6 +38,10 @@ class Variable extends EntryContent {
         }
 
         return output;
+    }
+
+    public int getArgumentsNumber() {
+    	return 0;
     }
 
     @Override 
@@ -190,6 +195,13 @@ class FunctionalElement extends EntryContent {
         }
     }
 
+    public int getArgumentsNumber() {
+    	if (this.simulationIndex < 5)
+    		return 2;
+    	else
+    		return 1;
+    }
+
     @Override
     public String toString() {
 
@@ -226,6 +238,10 @@ class TreeEntry {
 
     public List<TreeEntry> getChildren() {
         return this.children;
+    }
+
+    public EntryContent getContent() {
+    	return this.content;
     }
 
     public void setContent(EntryContent content) {
@@ -300,6 +316,9 @@ public class FunctionGenetic {
             }
 
             output.add(elem);
+
+            if (FunctionalElement.verboseMode)
+            	System.out.println("Added " + elem + " to funtional set");
         }
 
         return output;
@@ -360,40 +379,157 @@ public class FunctionGenetic {
         }
     }
 
+    private static TreeEntry generateTree(
+    	int depth, 
+    	boolean fullInitialization,
+    	List<FunctionalElement> functionalElems, 
+    	List<Variable> variableElems) {
+
+    	double funcElemProbability = fullInitialization? 1.0: 0.5;
+    	FunctionalElement rootContent = 
+    		functionalElems.get(rand.nextInt(functionalElems.size()));
+    	TreeEntry root = new TreeEntry(rootContent);
+    	List<TreeEntry> parents = Arrays.asList(root);
+
+		for (int i = 0; i < depth; i++) {
+
+			if (parents.isEmpty()) { break; }
+
+			List<TreeEntry> newParents = new ArrayList<>();
+			for (TreeEntry parent : parents) {
+
+				int childrenNum = parent.getContent().getArgumentsNumber();
+				for (int j = 0; j < childrenNum; j++) {
+					
+					boolean isFunctional;
+					EntryContent ec;
+					if (i == depth-1) {
+
+						ec = variableElems.get(
+							rand.nextInt(variableElems.size()));
+						isFunctional = false;
+					}
+
+					else {
+						if (rand.nextDouble() < funcElemProbability) {
+							ec = functionalElems.get(
+								rand.nextInt(functionalElems.size()));
+							isFunctional = true;
+						}
+
+						else {
+							ec = variableElems.get(
+								rand.nextInt(variableElems.size()));
+							isFunctional = false;
+						}
+					}
+
+					TreeEntry child = new TreeEntry(ec);
+					parent.addChild(child);
+
+					if (isFunctional)
+						newParents.add(child);
+				}
+			}
+
+			parents = newParents;
+		}
+
+    	return root;
+    }
+
+    private static List<TreeEntry> generatePopulation(
+    	int n, 
+    	int maxDepth,
+    	List<FunctionalElement> functionalElems, 
+    	List<Variable> variableElems) {
+
+    	List<TreeEntry> roots = new ArrayList<>();
+
+    	if (n < 1) {
+    		System.err.println("generatePopulation: n must be >= 1");
+    		return roots;
+    	}
+
+    	if (maxDepth < 1) {
+    		System.err.println("generatePopulation: maxDepth must be >= 1");
+    		return roots;
+    	}
+
+    	// defines percentage of certain depth trees for applying
+    	// grow initialization mechanism
+    	double growMethodFraction = 0.6;
+
+    	for (int i = 0; i < maxDepth; i++) {
+
+    		int treesByDepth = (i == maxDepth-1)? 
+    			(n - i*n/maxDepth): 
+    			(n/maxDepth);
+    		int fullInitTrees = 
+    			(int) (treesByDepth - treesByDepth*growMethodFraction);
+
+    		System.out.println("treesByDepth: " + treesByDepth + 
+    			" fullInitTrees: " + fullInitTrees);
+
+    		for (int j = 0; j < treesByDepth; j++) {
+
+    			TreeEntry root;
+    			if (j < fullInitTrees) {
+    				root = generateTree(i+1, true, 
+    					functionalElems, variableElems);
+    			}
+
+    			else {
+    				root = generateTree(i+1, false, 
+    					functionalElems, variableElems);
+    			}
+
+    			roots.add(root);
+    			generateDotFile("data/tree_" + i + "_" + j + ".dot", root);
+    		}
+    	}
+
+    	return roots;
+    }
+
     public static void main(String[] args) {
 
-        FunctionalElement rootElem = new FunctionalElement("+");
-        FunctionalElement absLeft = new FunctionalElement("abs");
-        FunctionalElement multRight = new FunctionalElement("*");
-        FunctionalElement diff = new FunctionalElement("-");
-        Variable x1 = new Variable(5);
-        Variable x2 = new Variable(7);
-        Variable x3 = new Variable(8);
-        Variable x4 = new Variable(3);
+        // FunctionalElement rootElem = new FunctionalElement("+");
+        // FunctionalElement absLeft = new FunctionalElement("abs");
+        // FunctionalElement multRight = new FunctionalElement("*");
+        // FunctionalElement diff = new FunctionalElement("-");
+        // Variable x1 = new Variable(5);
+        // Variable x2 = new Variable(7);
+        // Variable x3 = new Variable(8);
+        // Variable x4 = new Variable(3);
 
-        TreeEntry root = new TreeEntry(rootElem);
-        TreeEntry left = new TreeEntry(absLeft);
-        TreeEntry right = new TreeEntry(multRight);
-        root.addChild(left);
-        root.addChild(right);
+        // TreeEntry root = new TreeEntry(rootElem);
+        // TreeEntry left = new TreeEntry(absLeft);
+        // TreeEntry right = new TreeEntry(multRight);
+        // root.addChild(left);
+        // root.addChild(right);
 
-        TreeEntry diffEntry = new TreeEntry(diff);
-        left.addChild(diffEntry);
+        // TreeEntry diffEntry = new TreeEntry(diff);
+        // left.addChild(diffEntry);
 
-        TreeEntry diffA = new TreeEntry(x1);
-        TreeEntry diffB = new TreeEntry(x2);
-        diffEntry.addChild(diffA);
-        diffEntry.addChild(diffB);
+        // TreeEntry diffA = new TreeEntry(x1);
+        // TreeEntry diffB = new TreeEntry(x2);
+        // diffEntry.addChild(diffA);
+        // diffEntry.addChild(diffB);
 
-        TreeEntry multA = new TreeEntry(x3);
-        TreeEntry multB = new TreeEntry(x4);
-        right.addChild(multA);
-        right.addChild(multB);
+        // TreeEntry multA = new TreeEntry(x3);
+        // TreeEntry multB = new TreeEntry(x4);
+        // right.addChild(multA);
+        // right.addChild(multB);
 
-        // FunctionalElement.verboseMode = true;
-        // Variable.verboseMode = true;
+        // // FunctionalElement.verboseMode = true;
 
-        generateDotFile("data/tree.dot", root);
-        System.out.println(root.getData());
+        // generateDotFile("data/tree.dot", root);
+        // System.out.println(root.getData());
+
+        List<FunctionalElement> fSet = prepareFunctionalElements(16);
+        List<Variable> vSet = prepareVariables(8);
+
+        List<TreeEntry> population = generatePopulation(30, 6, fSet, vSet);
     }
 }
