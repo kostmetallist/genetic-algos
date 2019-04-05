@@ -266,6 +266,38 @@ class TreeEntry {
         return this.content.getData(childrenData);
     }
 
+    public int getEntriesNumber() {
+
+        if (!this.haveChildren()) {
+            return 1;
+        }
+
+        // init value is 1 because of counting itself
+        int accumulator = 1;
+        for (TreeEntry child : this.children) {
+            accumulator += child.getEntriesNumber();
+        }
+
+        return accumulator;
+    }
+
+    private void collectParentals(List<TreeEntry> parentals) {
+        
+        if (this.haveChildren()) {
+
+            parentals.add(this);
+            for (TreeEntry child : this.children) 
+                child.collectParentals(parentals);
+        }
+    }
+
+    public List<TreeEntry> getParentalEntries() {
+        
+        List<TreeEntry> parentals = new ArrayList<>();
+        this.collectParentals(parentals);
+        return parentals;
+    }
+
     public void writeDot(int parentId, BufferedWriter bw) {
 
         try {
@@ -292,6 +324,92 @@ class TreeEntry {
         return this.content.toString();
     }
 }
+
+
+class ProgramTree implements Comparable<ProgramTree> {
+
+    private Random rand = new Random();
+    private TreeEntry root;
+    private static double targetValue;
+
+
+    public ProgramTree(TreeEntry root) {
+        this.root = root;
+    }
+
+    public TreeEntry getRoot() {
+        return this.root;
+    }
+
+    public static void setTargetValue(double tv) {
+        targetValue = tv;
+    }
+
+    public double getFitnessValue() {
+        return Math.exp(-Math.abs(this.root.getData() - targetValue));
+    }
+
+    // implementing
+    public int compareTo(ProgramTree another) {
+        return (this.getFitnessValue() > another.getFitnessValue())? 1: -1;
+    }
+
+    // performs deep copying
+    public ProgramTree cloneTree() {
+
+        TreeEntry clonedRoot = new TreeEntry(this.root.getContent());
+
+        List<TreeEntry> parents = Arrays.asList(this.root);
+        List<TreeEntry> clonedParents = Arrays.asList(clonedRoot);
+
+        while (!parents.isEmpty()) {
+
+            List<TreeEntry> newParents = new ArrayList<>();
+            List<TreeEntry> newClonedParents = new ArrayList<>();
+
+            for (int i = 0; i < parents.size(); i++) {
+                for (TreeEntry child : parents.get(i).getChildren()) {
+
+                    EntryContent ec = child.getContent();
+                    TreeEntry clonedChild = new TreeEntry(ec);
+                    clonedParents.get(i).addChild(clonedChild);
+
+                    if (ec.getArgumentsNumber() > 0) {
+                        newParents.add(child);
+                        newClonedParents.add(clonedChild);
+                    }
+                }
+            }
+
+            parents = newParents;
+            clonedParents = newClonedParents;
+        }
+
+        return new ProgramTree(clonedRoot);
+    }
+
+    // private TreeEntry[] getRandomEntry(boolean targetParents) {
+
+    //     int entriesNum = this.root.getEntriesNumber();
+    //     int indexToFetch = rand.nextInt(entriesNum);
+    // }
+
+    public ProgramTree[] crossWith(ProgramTree another) {
+
+        ProgramTree offspring1 = this.cloneTree();
+        ProgramTree offspring2 = another.cloneTree();
+
+        TreeEntry temp = offspring1.getRoot().getChildren().get(1);
+        offspring1.getRoot().getChildren().set(1, 
+            offspring2.getRoot().getChildren().get(0).getChildren().get(0));
+        offspring2.getRoot().getChildren().get(0).getChildren().set(0, temp);
+
+        // TODO choose 2 strongest from offsprings and parents
+        ProgramTree[] result = {offspring1, offspring2};
+        return result;
+    }
+}
+
 
 public class FunctionGenetic {
 
@@ -324,16 +442,6 @@ public class FunctionGenetic {
         return output;
     }
 
-    private static List<Variable> prepareVariables(int n) {
-
-        List<Variable> output = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            output.add(new Variable(0));
-        }
-
-        return output;
-    }
-
     private static void initVariables(List<Variable> variables) {
 
         double rangeLength = 3;
@@ -344,7 +452,29 @@ public class FunctionGenetic {
         }
     }
 
-    private static void generateDotFile(String filename, TreeEntry root) {
+    private static List<Variable> prepareVariables(int n) {
+
+        List<Variable> output = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            output.add(new Variable(0));
+        }
+
+        initVariables(output);
+        return output;
+    }
+
+    private static double getInvestigatedValue(List<Variable> variables) {
+
+        double sum = 0.0;
+        int power = 2;
+        for (Variable each : variables) {
+            sum += Math.pow(Math.abs(each.getData(null)), power++);
+        }
+
+        return sum;
+    }
+
+    private static void generateDotFile(String filename, ProgramTree tree) {
 
         File file = new File(filename);
         FileWriter fw = null;
@@ -358,7 +488,7 @@ public class FunctionGenetic {
             bw.write("digraph G {");
             bw.newLine();
             bw.newLine();
-            root.writeDot(-1, bw);
+            tree.getRoot().writeDot(-1, bw);
             bw.write("}");
             bw.newLine();
         }
@@ -379,7 +509,7 @@ public class FunctionGenetic {
         }
     }
 
-    private static TreeEntry generateTree(
+    private static ProgramTree generateTree(
     	int depth, 
     	boolean fullInitialization,
     	List<FunctionalElement> functionalElems, 
@@ -435,31 +565,30 @@ public class FunctionGenetic {
 			parents = newParents;
 		}
 
-    	return root;
+    	return new ProgramTree(root);
     }
 
-    private static List<TreeEntry> generatePopulation(
+    private static List<ProgramTree> generatePopulation(
     	int n, 
     	int maxDepth,
     	List<FunctionalElement> functionalElems, 
     	List<Variable> variableElems) {
 
-    	List<TreeEntry> roots = new ArrayList<>();
+    	List<ProgramTree> trees = new ArrayList<>();
 
     	if (n < 1) {
     		System.err.println("generatePopulation: n must be >= 1");
-    		return roots;
+    		return trees;
     	}
 
     	if (maxDepth < 1) {
     		System.err.println("generatePopulation: maxDepth must be >= 1");
-    		return roots;
+    		return trees;
     	}
 
     	// defines percentage of certain depth trees for applying
     	// grow initialization mechanism
     	double growMethodFraction = 0.6;
-
     	for (int i = 0; i < maxDepth; i++) {
 
     		int treesByDepth = (i == maxDepth-1)? 
@@ -473,63 +602,82 @@ public class FunctionGenetic {
 
     		for (int j = 0; j < treesByDepth; j++) {
 
-    			TreeEntry root;
+    			ProgramTree tree;
     			if (j < fullInitTrees) {
-    				root = generateTree(i+1, true, 
+    				tree = generateTree(i+1, true, 
     					functionalElems, variableElems);
     			}
 
     			else {
-    				root = generateTree(i+1, false, 
+    				tree = generateTree(i+1, false, 
     					functionalElems, variableElems);
     			}
 
-    			roots.add(root);
-    			generateDotFile("data/tree_" + i + "_" + j + ".dot", root);
+    			trees.add(tree);
+    			generateDotFile("data/tree_" + i + "_" + j + ".dot", tree);
     		}
     	}
 
-    	return roots;
+    	return trees;
     }
 
     public static void main(String[] args) {
 
-        // FunctionalElement rootElem = new FunctionalElement("+");
-        // FunctionalElement absLeft = new FunctionalElement("abs");
-        // FunctionalElement multRight = new FunctionalElement("*");
-        // FunctionalElement diff = new FunctionalElement("-");
-        // Variable x1 = new Variable(5);
-        // Variable x2 = new Variable(7);
-        // Variable x3 = new Variable(8);
-        // Variable x4 = new Variable(3);
-
-        // TreeEntry root = new TreeEntry(rootElem);
-        // TreeEntry left = new TreeEntry(absLeft);
-        // TreeEntry right = new TreeEntry(multRight);
-        // root.addChild(left);
-        // root.addChild(right);
-
-        // TreeEntry diffEntry = new TreeEntry(diff);
-        // left.addChild(diffEntry);
-
-        // TreeEntry diffA = new TreeEntry(x1);
-        // TreeEntry diffB = new TreeEntry(x2);
-        // diffEntry.addChild(diffA);
-        // diffEntry.addChild(diffB);
-
-        // TreeEntry multA = new TreeEntry(x3);
-        // TreeEntry multB = new TreeEntry(x4);
-        // right.addChild(multA);
-        // right.addChild(multB);
-
-        // // FunctionalElement.verboseMode = true;
-
-        // generateDotFile("data/tree.dot", root);
-        // System.out.println(root.getData());
-
         List<FunctionalElement> fSet = prepareFunctionalElements(16);
         List<Variable> vSet = prepareVariables(8);
 
-        List<TreeEntry> population = generatePopulation(30, 6, fSet, vSet);
+        ProgramTree.setTargetValue(getInvestigatedValue(vSet));
+        List<ProgramTree> population = generatePopulation(30, 6, fSet, vSet);
+
+        for (ProgramTree each : population) {
+            System.out.println("Fitness: " + each.getFitnessValue());
+        }
+
+        //////
+
+        TreeEntry var0 = new TreeEntry(vSet.get(0));
+        TreeEntry var1 = new TreeEntry(vSet.get(1));
+        TreeEntry var2 = new TreeEntry(vSet.get(2));
+        TreeEntry var3 = new TreeEntry(vSet.get(3));
+        TreeEntry var4 = new TreeEntry(vSet.get(4));
+        TreeEntry var5 = new TreeEntry(vSet.get(5));
+        TreeEntry var6 = new TreeEntry(vSet.get(6));
+        TreeEntry var7 = new TreeEntry(vSet.get(7));
+
+        TreeEntry root1 = new TreeEntry(fSet.get(0));
+        ProgramTree parent1 = new ProgramTree(root1);
+        TreeEntry left1 = new TreeEntry(fSet.get(2));
+        TreeEntry right1 = new TreeEntry(fSet.get(1));
+        root1.addChild(left1);
+        root1.addChild(right1);
+        left1.addChild(var0);
+        left1.addChild(var1);
+        right1.addChild(var2);
+        right1.addChild(var3);
+
+        TreeEntry root2 = new TreeEntry(fSet.get(5));
+        ProgramTree parent2 = new ProgramTree(root2);
+        TreeEntry plus = new TreeEntry(fSet.get(0));
+        root2.addChild(plus);
+        TreeEntry left2 = new TreeEntry(fSet.get(3));
+        TreeEntry right2 = new TreeEntry(fSet.get(3));
+        plus.addChild(left2);
+        plus.addChild(right2);
+        left2.addChild(var4);
+        left2.addChild(var5);
+        right2.addChild(var6);
+        right2.addChild(var7);
+
+        ProgramTree[] offsprings = parent1.crossWith(parent2);
+
+        generateDotFile("data/parent1.dot", parent1);
+        generateDotFile("data/parent2.dot", parent2);
+        generateDotFile("data/offspring1.dot", offsprings[0]);
+        generateDotFile("data/offspring2.dot", offsprings[1]);
+
+        System.out.println("Parental entries for offsprings[0]:");
+        for (TreeEntry each : offsprings[1].getRoot().getParentalEntries()) {
+            System.out.println(each);
+        }
     }
 }
