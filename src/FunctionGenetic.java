@@ -388,38 +388,53 @@ class ProgramTree implements Comparable<ProgramTree> {
         return new ProgramTree(clonedRoot);
     }
 
-    // private TreeEntry[] getRandomEntry(boolean targetParents) {
-
-    //     int entriesNum = this.root.getEntriesNumber();
-    //     int indexToFetch = rand.nextInt(entriesNum);
-    // }
-
     public ProgramTree[] crossWith(ProgramTree another) {
 
         ProgramTree offspring1 = this.cloneTree();
         ProgramTree offspring2 = another.cloneTree();
 
         List<TreeEntry> parentals1 = offspring1.getRoot().getParentalEntries();
-        TreeEntry chosenParent1 = 
-        	parentals1.get(rand.nextInt(parentals1.size()));
-        List<TreeEntry> recombinationCandidates1 = chosenParent1.getChildren();
-
-        TreeEntry recombinationEntry1 = 
-        	recombinationCandidates1.get(rand.nextInt(
-        		recombinationCandidates1.size()));
-        int preferredArgNum = 
-        	recombinationEntry1.getContent().getArgumentsNumber();
-
-        List<TreeEntry> parentals2 = offspring2.getRoot().getParentalEntries();
         List<TreeEntry> recessiveCandidates = new ArrayList<>();
-        for (TreeEntry each : parentals2) {
-        	for (TreeEntry child : each.getChildren()) {
-        		if (child.getContent().getArgumentsNumber()==preferredArgNum) {
+        int retriesLimit = 3, 
+            crossingIteration = 0;
+        TreeEntry chosenParent1 = null, 
+            recombinationEntry1 = null;
+        List<TreeEntry> recombinationCandidates1;
+        int preferredArgNum = 0;
 
-        			recessiveCandidates.add(each);
-        			break;
-        		}
-        	}
+        // trying `retriesLimit` times before 
+        // surrender to cross
+        while (recessiveCandidates.isEmpty() && 
+            crossingIteration < retriesLimit) {
+
+            chosenParent1 = parentals1.get(rand.nextInt(parentals1.size()));
+            recombinationCandidates1 = chosenParent1.getChildren();
+
+            recombinationEntry1 = recombinationCandidates1.get(rand.nextInt(
+                    recombinationCandidates1.size()));
+            preferredArgNum = 
+                recombinationEntry1.getContent().getArgumentsNumber();
+
+            List<TreeEntry> parentals2 = 
+                offspring2.getRoot().getParentalEntries();
+
+            for (TreeEntry each : parentals2) {
+                for (TreeEntry child : each.getChildren()) {
+                    if (child.getContent().getArgumentsNumber() == 
+                        preferredArgNum) {
+
+                        recessiveCandidates.add(each);
+                        break;
+                    }
+                }
+            }
+
+            crossingIteration++;
+        }
+
+        if (recessiveCandidates.isEmpty()) {
+            ProgramTree[] result = {offspring1, offspring2};
+            return result;
         }
 
         TreeEntry chosenParent2 = 
@@ -443,6 +458,65 @@ class ProgramTree implements Comparable<ProgramTree> {
         // TODO choose 2 strongest from offsprings and parents
         ProgramTree[] result = {offspring1, offspring2};
         return result;
+    }
+
+    public ProgramTree mutate(List<FunctionalElement> fSet, 
+        List<Variable> vSet) {
+
+        ProgramTree mutant = this.cloneTree();
+        List<TreeEntry> parentals = mutant.getRoot().getParentalEntries();
+
+        TreeEntry chosenParent = parentals.get(rand.nextInt(parentals.size()));
+        int childrenNum = chosenParent.getChildren().size();
+        int indexToMutate = rand.nextInt(childrenNum+1);
+
+        // mutating parent element
+        if (indexToMutate == childrenNum) {
+
+            int argNum = chosenParent.getContent().getArgumentsNumber();
+            List<FunctionalElement> possibleSubstitutes = new ArrayList<>();
+            for (FunctionalElement elem : fSet) {
+                if (elem.getArgumentsNumber() == argNum && 
+                    elem != chosenParent.getContent()) {
+
+                    possibleSubstitutes.add(elem);
+                }
+            }
+
+            if (!possibleSubstitutes.isEmpty())
+                chosenParent.setContent(possibleSubstitutes.get(rand.nextInt(
+                    possibleSubstitutes.size())));
+        }
+
+        else {
+
+            TreeEntry chosenChild = 
+                chosenParent.getChildren().get(indexToMutate);
+            int argNum = chosenChild.getContent().getArgumentsNumber();
+
+            // `chosenChild`'s content is a Variable object
+            if (argNum == 0) {
+                chosenChild.setContent(vSet.get(rand.nextInt(vSet.size())));
+            }
+
+            else {
+
+                List<FunctionalElement> possibleSubstitutes = new ArrayList<>();
+                for (FunctionalElement elem : fSet) {
+                    if (elem.getArgumentsNumber() == argNum && 
+                        elem != chosenChild.getContent()) {
+
+                        possibleSubstitutes.add(elem);
+                    }
+                }
+
+                if (!possibleSubstitutes.isEmpty())
+                    chosenChild.setContent(possibleSubstitutes.get(
+                        rand.nextInt(possibleSubstitutes.size())));
+            }
+        }
+
+        return mutant;
     }
 }
 
@@ -480,8 +554,8 @@ public class FunctionGenetic {
 
     private static void initVariables(List<Variable> variables) {
 
-        double rangeLength = 3;
-        double from = -1.5;
+        double rangeLength = 2;
+        double from = -1;
 
         for (Variable each : variables) {
             each.setValue(rand.nextDouble()*rangeLength + from);
@@ -650,15 +724,101 @@ public class FunctionGenetic {
     			}
 
     			trees.add(tree);
-    			generateDotFile("data/tree_" + i + "_" + j + ".dot", tree);
+    			generateDotFile("data/initial/tree_" + i + "_" + j + ".dot", 
+                    tree);
     		}
     	}
 
     	return trees;
     }
 
-    public List<ProgramTree> doEvolutionStep(List<ProgramTree> population) {
+    private static List<Double> prepareRouletteMarkup(
+        List<ProgramTree> population) {
+
+        List<Double> probabilities = new ArrayList<>();
+        double sum = 0;
+        for (ProgramTree tree : population) {
+
+            double fitness = tree.getFitnessValue();
+            probabilities.add(fitness);
+            sum += fitness;
+        }
+
+        // after this for loop, `probabilities` will really contain values
+        // that sums to 1
+        for (int i = 0; i < probabilities.size(); i++) {
+
+            double old = probabilities.get(i);
+            probabilities.set(i, old/sum);
+        }
+
+        List<Double> markupPoints = new ArrayList<>();
+        double accumulator = 0;
+        for (Double prob : probabilities) {
+
+            accumulator += prob;
+            markupPoints.add(accumulator);
+        }
+
+        return markupPoints;
+    }
+
+    private static int getRouletteInterval(List<Double> markupPoints) {
+
+        double randomValue = rand.nextDouble(), 
+            from = 0;
+
+        for (int i = 0; i < markupPoints.size(); i++) {
+
+            if (randomValue > from && 
+                randomValue < markupPoints.get(i)) {
+
+                return i;
+            }
+
+            from = markupPoints.get(i);
+        }
+
+        // for exclusive scenarios
+        System.err.println("getRouletteInterval: not found exact index");
+        return rand.nextInt(markupPoints.size());
+    }
+
+    public static List<ProgramTree> doEvolutionStep(
+        List<ProgramTree> population, 
+        List<FunctionalElement> fSet, 
+        List<Variable> vSet) {
     	
+        List<Double> markupPoints = prepareRouletteMarkup(population);
+        List<ProgramTree> intermediatePopulation = new ArrayList<>();
+
+        // crossing
+        for (int pairNum = 0; pairNum < population.size()/2; pairNum++) {
+            
+            int parentId1 = getRouletteInterval(markupPoints);
+            int parentId2 = parentId1;
+
+            // choosing some another tree in population
+            while (parentId2 == parentId1) {
+                parentId2 = getRouletteInterval(markupPoints);
+            }
+
+            ProgramTree parent1 = population.get(parentId1);
+            ProgramTree parent2 = population.get(parentId2);
+            ProgramTree[] offsprings = parent1.crossWith(parent2);
+            for (int i = 0; i < offsprings.length; i++) {
+                intermediatePopulation.add(offsprings[i]);
+            }
+        }
+
+        double mutationProbability = 0.05;
+        for (ProgramTree each : intermediatePopulation) {
+            if (rand.nextDouble() < mutationProbability) {
+                each = each.mutate(fSet, vSet);
+            }
+        }
+
+        return intermediatePopulation;
     }
 
     public static void main(String[] args) {
@@ -667,7 +827,7 @@ public class FunctionGenetic {
         List<Variable> vSet = prepareVariables(8);
 
         ProgramTree.setTargetValue(getInvestigatedValue(vSet));
-        List<ProgramTree> population = generatePopulation(30, 6, fSet, vSet);
+        List<ProgramTree> population = generatePopulation(40, 9, fSet, vSet);
 
         for (ProgramTree each : population) {
             System.out.println("Fitness: " + each.getFitnessValue());
@@ -676,10 +836,19 @@ public class FunctionGenetic {
         int epochNumber = 10;
         for (int i = 0; i < epochNumber; i++) {
 
-        	population = doEvolutionStep(population);
-        }
+        	population = doEvolutionStep(population, fSet, vSet);
+            System.out.println("---- iteration " + i + " ----");
+            for (ProgramTree each : population) {
+                System.out.println("Fitness: " + each.getFitnessValue());
+            }
 
-        //////
+            if (i == epochNumber-1) {
+                for (int j = 0; j < population.size(); j++) {
+                    generateDotFile("data/tree" + j + ".dot", 
+                        population.get(j));
+                }
+            }
+        }
 
         TreeEntry var0 = new TreeEntry(vSet.get(0));
         TreeEntry var1 = new TreeEntry(vSet.get(1));
@@ -690,40 +859,62 @@ public class FunctionGenetic {
         TreeEntry var6 = new TreeEntry(vSet.get(6));
         TreeEntry var7 = new TreeEntry(vSet.get(7));
 
-        TreeEntry root1 = new TreeEntry(fSet.get(0));
-        ProgramTree parent1 = new ProgramTree(root1);
-        TreeEntry left1 = new TreeEntry(fSet.get(2));
-        TreeEntry right1 = new TreeEntry(fSet.get(1));
-        root1.addChild(left1);
-        root1.addChild(right1);
-        left1.addChild(var0);
-        left1.addChild(var1);
-        right1.addChild(var2);
-        right1.addChild(var3);
+        TreeEntry rootEntry = new TreeEntry(fSet.get(0));
+        TreeEntry plusL = new TreeEntry(fSet.get(0));
+        TreeEntry plusR = new TreeEntry(fSet.get(0));
+        TreeEntry plusLL = new TreeEntry(fSet.get(0));
+        TreeEntry plusLR = new TreeEntry(fSet.get(0));
+        TreeEntry plusRL = new TreeEntry(fSet.get(0));
+        TreeEntry plusRR = new TreeEntry(fSet.get(0));
+        TreeEntry abs0 = new TreeEntry(fSet.get(4));
+        TreeEntry abs1 = new TreeEntry(fSet.get(4));
+        TreeEntry abs2 = new TreeEntry(fSet.get(4));
+        TreeEntry abs3 = new TreeEntry(fSet.get(4));
+        TreeEntry abs4 = new TreeEntry(fSet.get(4));
+        TreeEntry abs5 = new TreeEntry(fSet.get(4));
+        TreeEntry abs6 = new TreeEntry(fSet.get(4));
+        TreeEntry abs7 = new TreeEntry(fSet.get(4));
+        TreeEntry pow0 = new TreeEntry(fSet.get(8));
+        TreeEntry pow1 = new TreeEntry(fSet.get(9));
+        TreeEntry pow2 = new TreeEntry(fSet.get(10));
+        TreeEntry pow3 = new TreeEntry(fSet.get(11));
+        TreeEntry pow4 = new TreeEntry(fSet.get(12));
+        TreeEntry pow5 = new TreeEntry(fSet.get(13));
+        TreeEntry pow6 = new TreeEntry(fSet.get(14));
+        TreeEntry pow7 = new TreeEntry(fSet.get(15));
 
-        TreeEntry root2 = new TreeEntry(fSet.get(5));
-        ProgramTree parent2 = new ProgramTree(root2);
-        TreeEntry plus = new TreeEntry(fSet.get(0));
-        root2.addChild(plus);
-        TreeEntry left2 = new TreeEntry(fSet.get(3));
-        TreeEntry right2 = new TreeEntry(fSet.get(3));
-        plus.addChild(left2);
-        plus.addChild(right2);
-        left2.addChild(var4);
-        left2.addChild(var5);
-        right2.addChild(var6);
-        right2.addChild(var7);
+        rootEntry.addChild(plusL);
+        rootEntry.addChild(plusR);
+        plusL.addChild(plusLL);
+        plusL.addChild(plusLR);
+        plusR.addChild(plusRL);
+        plusR.addChild(plusRR);
+        plusLL.addChild(abs0);
+        plusLL.addChild(abs1);
+        plusLR.addChild(abs2);
+        plusLR.addChild(abs3);
+        plusRL.addChild(abs4);
+        plusRL.addChild(abs5);
+        plusRR.addChild(abs6);
+        plusRR.addChild(abs7);
+        abs0.addChild(pow0);
+        abs1.addChild(pow1);
+        abs2.addChild(pow2);
+        abs3.addChild(pow3);
+        abs4.addChild(pow4);
+        abs5.addChild(pow5);
+        abs6.addChild(pow6);
+        abs7.addChild(pow7);
+        pow0.addChild(var0);
+        pow1.addChild(var1);
+        pow2.addChild(var2);
+        pow3.addChild(var3);
+        pow4.addChild(var4);
+        pow5.addChild(var5);
+        pow6.addChild(var6);
+        pow7.addChild(var7);
 
-        ProgramTree[] offsprings = parent1.crossWith(parent2);
-
-        generateDotFile("data/parent1.dot", parent1);
-        generateDotFile("data/parent2.dot", parent2);
-        generateDotFile("data/offspring1.dot", offsprings[0]);
-        generateDotFile("data/offspring2.dot", offsprings[1]);
-
-        // System.out.println("Parental entries for offsprings[0]:");
-        // for (TreeEntry each : offsprings[1].getRoot().getParentalEntries()) {
-        //     System.out.println(each);
-        // }
+        ProgramTree solution = new ProgramTree(rootEntry);
+        generateDotFile("data/solution.dot", solution);
     }
 }
