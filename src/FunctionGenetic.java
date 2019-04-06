@@ -399,10 +399,46 @@ class ProgramTree implements Comparable<ProgramTree> {
         ProgramTree offspring1 = this.cloneTree();
         ProgramTree offspring2 = another.cloneTree();
 
-        TreeEntry temp = offspring1.getRoot().getChildren().get(1);
-        offspring1.getRoot().getChildren().set(1, 
-            offspring2.getRoot().getChildren().get(0).getChildren().get(0));
-        offspring2.getRoot().getChildren().get(0).getChildren().set(0, temp);
+        List<TreeEntry> parentals1 = offspring1.getRoot().getParentalEntries();
+        TreeEntry chosenParent1 = 
+        	parentals1.get(rand.nextInt(parentals1.size()));
+        List<TreeEntry> recombinationCandidates1 = chosenParent1.getChildren();
+
+        TreeEntry recombinationEntry1 = 
+        	recombinationCandidates1.get(rand.nextInt(
+        		recombinationCandidates1.size()));
+        int preferredArgNum = 
+        	recombinationEntry1.getContent().getArgumentsNumber();
+
+        List<TreeEntry> parentals2 = offspring2.getRoot().getParentalEntries();
+        List<TreeEntry> recessiveCandidates = new ArrayList<>();
+        for (TreeEntry each : parentals2) {
+        	for (TreeEntry child : each.getChildren()) {
+        		if (child.getContent().getArgumentsNumber()==preferredArgNum) {
+
+        			recessiveCandidates.add(each);
+        			break;
+        		}
+        	}
+        }
+
+        TreeEntry chosenParent2 = 
+        	recessiveCandidates.get(rand.nextInt(recessiveCandidates.size()));
+        List<TreeEntry> possibleChildren = new ArrayList<>();
+        for (TreeEntry child : chosenParent2.getChildren()) {
+			if (child.getContent().getArgumentsNumber()==preferredArgNum) {
+    			possibleChildren.add(child);
+    		}
+        }
+
+        TreeEntry recombinationEntry2 = 
+        	possibleChildren.get(rand.nextInt(possibleChildren.size()));
+        TreeEntry temp = recombinationEntry1;
+
+        chosenParent1.getChildren().set(chosenParent1.getChildren().
+        	indexOf(recombinationEntry1), recombinationEntry2);
+        chosenParent2.getChildren().set(chosenParent2.getChildren().
+        	indexOf(recombinationEntry2), temp);
 
         // TODO choose 2 strongest from offsprings and parents
         ProgramTree[] result = {offspring1, offspring2};
@@ -621,6 +657,10 @@ public class FunctionGenetic {
     	return trees;
     }
 
+    public List<ProgramTree> doEvolutionStep(List<ProgramTree> population) {
+    	
+    }
+
     public static void main(String[] args) {
 
         List<FunctionalElement> fSet = prepareFunctionalElements(16);
@@ -631,6 +671,12 @@ public class FunctionGenetic {
 
         for (ProgramTree each : population) {
             System.out.println("Fitness: " + each.getFitnessValue());
+        }
+
+        int epochNumber = 10;
+        for (int i = 0; i < epochNumber; i++) {
+
+        	population = doEvolutionStep(population);
         }
 
         //////
@@ -675,9 +721,9 @@ public class FunctionGenetic {
         generateDotFile("data/offspring1.dot", offsprings[0]);
         generateDotFile("data/offspring2.dot", offsprings[1]);
 
-        System.out.println("Parental entries for offsprings[0]:");
-        for (TreeEntry each : offsprings[1].getRoot().getParentalEntries()) {
-            System.out.println(each);
-        }
+        // System.out.println("Parental entries for offsprings[0]:");
+        // for (TreeEntry each : offsprings[1].getRoot().getParentalEntries()) {
+        //     System.out.println(each);
+        // }
     }
 }
